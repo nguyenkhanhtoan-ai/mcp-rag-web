@@ -1,16 +1,270 @@
 {% extends "base.html" %}
 {% block title %}Đăng nhập{% endblock %}
+
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --gold: #e8b458;
+        --gold-dim: rgba(232, 180, 88, 0.35);
+    }
+    body { margin: 0; }
+    main { max-width: none; margin: 0; padding: 0; }
+
+    .auth-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+    }
+    @media (max-width: 860px) {
+        .auth-shell { grid-template-columns: 1fr; min-height: 0; }
+    }
+
+    /* ---- Left: identity panel ---- */
+    .auth-brand {
+        position: relative;
+        background:
+            linear-gradient(165deg, rgba(9,11,16,0.95) 8%, rgba(9,11,16,0.80) 50%, rgba(9,11,16,0.96) 100%),
+            url('https://icolor.vn/wp-content/uploads/2024/08/logo-vnpt-1.jpg') center 38% / cover no-repeat;
+        padding: 56px 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        border-right: 1px solid var(--border);
+    }
+    @media (max-width: 860px) {
+        .auth-brand { padding: 40px 28px 32px; }
+    }
+
+    .auth-brand-top { position: relative; z-index: 2; }
+    .auth-wordmark {
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #b9bfcb;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .auth-wordmark .dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: var(--gold);
+        box-shadow: 0 0 12px 2px var(--gold-dim);
+    }
+
+    .auth-title-block { position: relative; z-index: 2; margin-top: 22px; }
+    .auth-title {
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 600;
+        font-size: 33px;
+        line-height: 1.22;
+        color: var(--text);
+        margin: 0 0 12px;
+        max-width: 12ch;
+        text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+    }
+    @media (max-width: 860px) {
+        .auth-title { font-size: 26px; max-width: none; }
+    }
+    .auth-dept-tag {
+        display: inline-flex; align-items: center; gap: 8px;
+        font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
+        text-transform: uppercase; color: var(--gold);
+        background: rgba(232, 180, 88, 0.1);
+        border: 1px solid var(--gold-dim);
+        padding: 6px 12px; border-radius: 999px;
+    }
+
+    .auth-signature {
+        position: relative;
+        flex: 1;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+    .auth-signature svg { width: 100%; max-width: 380px; height: auto; }
+
+    .auth-node { fill: #5b6472; }
+    .auth-node.core { fill: var(--gold); }
+    .auth-edge {
+        stroke: #33394a;
+        stroke-width: 1;
+        fill: none;
+    }
+    .auth-edge.live {
+        stroke: var(--gold-dim);
+        stroke-dasharray: 4 5;
+        animation: auth-flow 3.5s linear infinite;
+    }
+    .auth-core-glow {
+        animation: auth-pulse 2.8s ease-in-out infinite;
+        transform-origin: center;
+    }
+    @keyframes auth-flow { to { stroke-dashoffset: -36; } }
+    @keyframes auth-pulse {
+        0%, 100% { opacity: 0.55; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.18); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .auth-edge.live { animation: none; }
+        .auth-core-glow { animation: none; }
+    }
+
+    .auth-brand-bottom {
+        position: relative; z-index: 2;
+        font-family: "Fraunces", Georgia, serif;
+        font-style: italic;
+        font-weight: 500;
+        font-size: 19px;
+        line-height: 1.5;
+        color: #c7cbd4;
+        max-width: 34ch;
+    }
+    .auth-brand-caption {
+        margin-top: 14px;
+        font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-style: normal;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    /* ---- Right: form panel ---- */
+    .auth-form-side {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 24px;
+        background: var(--bg);
+    }
+    .auth-form-box { width: 100%; max-width: 340px; }
+    .auth-form-box h1 {
+        font-family: "Fraunces", Georgia, serif;
+        font-weight: 600;
+        font-size: 28px;
+        margin: 0 0 6px;
+    }
+    .auth-form-box .auth-sub {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 28px;
+    }
+
+    .auth-field { margin-bottom: 18px; }
+    .auth-field label {
+        display: block; font-size: 12px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.04em;
+        color: var(--muted); margin-bottom: 7px;
+    }
+    .auth-input-wrap { position: relative; }
+    .auth-input-wrap svg {
+        position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+        width: 15px; height: 15px; stroke: var(--muted); pointer-events: none;
+    }
+    .auth-input-wrap input {
+        width: 100%; margin: 0; padding: 11px 12px 11px 36px;
+        background: #10131a; border: 1px solid var(--border); border-radius: 8px;
+        color: var(--text); font-size: 14px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .auth-input-wrap input:focus {
+        outline: none; border-color: var(--gold);
+        box-shadow: 0 0 0 3px var(--gold-dim);
+    }
+
+    .auth-submit {
+        width: 100%; margin-top: 6px; padding: 11px 16px;
+        background: var(--accent); color: white; border: none;
+        border-radius: 8px; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: opacity 0.15s;
+    }
+    .auth-submit:hover { opacity: 0.92; }
+
+    .auth-flash {
+        font-size: 13px; padding: 9px 12px; border-radius: 7px;
+        margin-bottom: 20px;
+    }
+    .auth-flash.error { background: rgba(248,113,113,0.12); color: var(--danger); }
+</style>
+{% endblock %}
+
+{% block flash %}{% endblock %}
 {% block content %}
-<div style="max-width: 360px; margin: 60px auto;">
-    <h1>Đăng nhập</h1>
-    <div class="card">
-        <form method="post" action="/login">
-            <label>Email</label>
-            <input type="email" name="email" required autofocus>
-            <label>Mật khẩu</label>
-            <input type="password" name="password" required>
-            <button type="submit" style="width:100%">Đăng nhập</button>
-        </form>
+<div class="auth-shell">
+    <div class="auth-brand">
+        <div class="auth-brand-top">
+            <span class="auth-wordmark"><span class="dot"></span>VNPT</span>
+        </div>
+
+        <div class="auth-title-block">
+            <h2 class="auth-title">Hệ thống quản trị kho tri thức</h2>
+            <span class="auth-dept-tag">Trung tâm Dịch vụ Khách hàng</span>
+        </div>
+
+        <div class="auth-signature" aria-hidden="true">
+            <svg viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path class="auth-edge live" d="M46 54 L160 120" />
+                <path class="auth-edge live" d="M272 44 L160 120" />
+                <path class="auth-edge live" d="M40 176 L160 120" />
+                <path class="auth-edge live" d="M264 190 L160 120" />
+                <path class="auth-edge" d="M150 30 L160 120" />
+                <path class="auth-edge" d="M170 208 L160 120" />
+
+                <circle class="auth-node" cx="46" cy="54" r="4.5" />
+                <circle class="auth-node" cx="272" cy="44" r="4.5" />
+                <circle class="auth-node" cx="40" cy="176" r="4.5" />
+                <circle class="auth-node" cx="264" cy="190" r="4.5" />
+                <circle class="auth-node" cx="150" cy="30" r="4" />
+                <circle class="auth-node" cx="170" cy="208" r="4" />
+
+                <circle class="auth-core-glow" cx="160" cy="120" r="16" fill="var(--gold)" opacity="0.18" />
+                <circle class="auth-node core" cx="160" cy="120" r="7" />
+            </svg>
+        </div>
+
+        <div class="auth-brand-bottom">
+            "Nhiều tài liệu, một nguồn tri thức."
+            <div class="auth-brand-caption">Cơ cấu tổ chức · Quy trình · Mô tả công việc — tất cả trong một hệ thống truy vấn được.</div>
+        </div>
+    </div>
+
+    <div class="auth-form-side">
+        <div class="auth-form-box">
+            <h1>Đăng nhập</h1>
+            <p class="auth-sub">Truy cập kho tài liệu nội bộ của đơn vị.</p>
+
+            {% if request.query_params.get('error') %}
+            <div class="auth-flash error">{{ request.query_params.get('error') }}</div>
+            {% endif %}
+
+            <form method="post" action="/login">
+                <div class="auth-field">
+                    <label>Email</label>
+                    <div class="auth-input-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>
+                        </svg>
+                        <input type="email" name="email" required autofocus placeholder="ten@donvi.vn">
+                    </div>
+                </div>
+                <div class="auth-field">
+                    <label>Mật khẩu</label>
+                    <div class="auth-input-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                        </svg>
+                        <input type="password" name="password" required placeholder="••••••••">
+                    </div>
+                </div>
+                <button type="submit" class="auth-submit">Đăng nhập</button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
