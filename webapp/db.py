@@ -270,35 +270,62 @@ def get_document_file(document_id: int) -> Optional[bytes]:
         conn.close()
 
 
-def list_documents(department_id: Optional[int] = None) -> list[dict]:
+def list_documents(department_id: Optional[int] = None, limit: Optional[int] = None,
+                    offset: int = 0) -> list[dict]:
     """department_id=None (và caller là admin) -> trả về tất cả. Nếu muốn lọc
-    theo 1 phòng ban cụ thể thì truyền id vào."""
+    theo 1 phòng ban cụ thể thì truyền id vào. limit/offset dùng cho phân trang."""
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            base_query = """
+                SELECT doc.id, doc.filename, doc.status, doc.error_message,
+                       doc.chunk_count, doc.uploaded_at, doc.ingested_at,
+                       doc.department_id, d.name AS department_name,
+                       u.name AS uploaded_by_name
+                FROM documents doc
+                LEFT JOIN departments d ON doc.department_id = d.id
+                LEFT JOIN users u ON doc.uploaded_by = u.id
+            """
+            params: list = []
             if department_id is not None:
-                cur.execute("""
-                    SELECT doc.id, doc.filename, doc.status, doc.error_message,
-                           doc.chunk_count, doc.uploaded_at, doc.ingested_at,
-                           doc.department_id, d.name AS department_name,
-                           u.name AS uploaded_by_name
-                    FROM documents doc
-                    LEFT JOIN departments d ON doc.department_id = d.id
-                    LEFT JOIN users u ON doc.uploaded_by = u.id
-                    WHERE doc.department_id = %s
-                    ORDER BY doc.uploaded_at DESC;
-                """, (department_id,))
+                base_query += " WHERE doc.department_id = %s"
+                params.append(department_id)
+            base_query += " ORDER BY doc.uploaded_at DESC"
+            if limit is not None:
+                base_query += " LIMIT %s OFFSET %s"
+                params.extend([limit, offset])
+            cur.execute(base_query, params)
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def count_documents(department_id: Optional[int] = None) -> int:
+    """Tổng số tài liệu, lọc theo phòng ban nếu truyền id."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            if department_id is not None:
+                cur.execute("SELECT COUNT(*) FROM documents WHERE department_id = %s;", (department_id,))
             else:
-                cur.execute("""
-                    SELECT doc.id, doc.filename, doc.status, doc.error_message,
-                           doc.chunk_count, doc.uploaded_at, doc.ingested_at,
-                           doc.department_id, d.name AS department_name,
-                           u.name AS uploaded_by_name
-                    FROM documents doc
-                    LEFT JOIN departments d ON doc.department_id = d.id
-                    LEFT JOIN users u ON doc.uploaded_by = u.id
-                    ORDER BY doc.uploaded_at DESC;
-                """)
+                cur.execute("SELECT COUNT(*) FROM documents;")
+            return cur.fetchone()[0]
+    finally:
+        conn.close()
+
+
+def count_documents_by_department() -> list[dict]:
+    """Tổng số tài liệu theo TỪNG phòng ban (không lọc) - dùng cho admin xem tổng quan."""
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT d.name AS department_name, COUNT(doc.id) AS doc_count
+                FROM departments d
+                LEFT JOIN documents doc ON doc.department_id = d.id
+                GROUP BY d.name
+                ORDER BY d.name;
+            """)
             return cur.fetchall()
     finally:
         conn.close()

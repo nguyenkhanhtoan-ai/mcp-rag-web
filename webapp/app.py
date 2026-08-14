@@ -89,14 +89,33 @@ def logout(request: Request):
 
 # ---------- Dashboard ----------
 
+DOCS_PER_PAGE = 5
+
+
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request):
+def dashboard(request: Request, page: int = 1):
     user = auth.require_login(request)
     dept_filter = auth.visible_department_id(user)
-    documents = db.list_documents(department_id=dept_filter)
+
+    page = max(1, page)
+    total_docs = db.count_documents(department_id=dept_filter)
+    total_pages = max(1, (total_docs + DOCS_PER_PAGE - 1) // DOCS_PER_PAGE)
+    page = min(page, total_pages)
+    offset = (page - 1) * DOCS_PER_PAGE
+
+    documents = db.list_documents(department_id=dept_filter, limit=DOCS_PER_PAGE, offset=offset)
     departments = db.list_departments()
+
+    # Thống kê: admin xem theo từng phòng ban, người khác chỉ xem tổng của phòng mình
+    if user["role"] == "admin":
+        dept_stats = db.count_documents_by_department()
+    else:
+        dept_stats = None
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "user": user, "documents": documents, "departments": departments,
+        "total_docs": total_docs, "dept_stats": dept_stats,
+        "current_page": page, "total_pages": total_pages,
     })
 
 

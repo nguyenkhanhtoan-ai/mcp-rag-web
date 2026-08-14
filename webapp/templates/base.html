@@ -58,6 +58,12 @@
         button:hover { opacity: 0.9; }
         button.danger { background: var(--danger); }
         button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .page-link {
+            display: inline-block; padding: 7px 14px; border-radius: 6px;
+            border: 1px solid var(--border); color: var(--text);
+            font-size: 13px; text-decoration: none;
+        }
+        .page-link:hover { border-color: var(--accent); color: var(--accent); }
         .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; }
         .flash.error { background: rgba(248,113,113,0.12); color: var(--danger); }
         .flash.success { background: rgba(52,211,153,0.12); color: var(--accent-2); }
@@ -83,13 +89,29 @@
 <main>
     {% block flash %}
     {% if request.query_params.get('error') %}
-    <div class="flash error">{{ request.query_params.get('error') }}</div>
+    <div class="flash error" id="flash-msg">{{ request.query_params.get('error') }}</div>
     {% endif %}
     {% if request.query_params.get('success') %}
-    <div class="flash success">{{ request.query_params.get('success') }}</div>
+    <div class="flash success" id="flash-msg">{{ request.query_params.get('success') }}</div>
     {% endif %}
     {% endblock %}
     {% block content %}{% endblock %}
 </main>
+<script>
+    // Tự ẩn banner thông báo (success/error) sau vài giây và dọn query string
+    // khỏi URL, để nó không hiện lại nếu người dùng refresh trang sau đó.
+    (function () {
+        var el = document.getElementById('flash-msg');
+        if (!el) return;
+        setTimeout(function () {
+            el.style.transition = 'opacity 0.4s ease';
+            el.style.opacity = '0';
+            setTimeout(function () { el.remove(); }, 400);
+            if (window.history.replaceState) {
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        }, 4000);
+    })();
+</script>
 </body>
 </html>

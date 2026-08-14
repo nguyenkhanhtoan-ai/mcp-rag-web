@@ -27,6 +27,19 @@
 </div>
 {% endif %}
 
+<div class="card" style="padding:16px 20px">
+    {% if dept_stats %}
+    <div class="row" style="flex-wrap:wrap; gap:20px">
+        <div><strong>{{ total_docs }}</strong> <span class="muted">tài liệu (tổng)</span></div>
+        {% for d in dept_stats %}
+        <div class="muted">{{ d.department_name }}: <strong style="color:var(--text)">{{ d.doc_count }}</strong></div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div><strong>{{ total_docs }}</strong> <span class="muted">tài liệu trong phòng ban của bạn</span></div>
+    {% endif %}
+</div>
+
 <h2>Danh sách tài liệu {% if user.role != 'admin' %}(phòng ban của bạn){% endif %}</h2>
 <div class="card">
     <table>
@@ -71,11 +84,25 @@
     </table>
 </div>
 
+{% if total_pages > 1 %}
+<div class="row" style="justify-content:center; gap:6px; margin-top:-8px; margin-bottom:20px">
+    {% if current_page > 1 %}
+    <a href="/?page={{ current_page - 1 }}" class="page-link">‹ Trước</a>
+    {% endif %}
+    <span class="muted" style="padding:0 8px">Trang {{ current_page }} / {{ total_pages }}</span>
+    {% if current_page < total_pages %}
+    <a href="/?page={{ current_page + 1 }}" class="page-link">Sau ›</a>
+    {% endif %}
+</div>
+{% endif %}
+
 {% set processing = documents | selectattr('status', 'in', ['pending', 'ingesting']) | list %}
 {% if processing %}
 <p class="muted">⏳ Đang xử lý {{ processing|length }} tài liệu... trang sẽ tự cập nhật.</p>
 <script>
-    setTimeout(() => { window.location.href = window.location.pathname; }, 3000);
+    setTimeout(() => {
+        window.location.href = window.location.pathname + '?page={{ current_page }}';
+    }, 3000);
 </script>
 {% endif %}
 {% endblock %}
