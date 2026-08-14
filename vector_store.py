@@ -40,20 +40,38 @@ def embed_texts(texts: Sequence[str]) -> list[list[float]]:
     return [item.embedding for item in resp.data]
 
 
-def get_connection():
-    """Mở 1 connection Postgres mới, đã đăng ký kiểu vector."""
+def get_connection(register_vector_type: bool = True):
+    """Mở 1 connection Postgres mới, mặc định đã đăng ký kiểu vector.
+
+    register_vector_type=False dùng khi extension `vector` có thể CHƯA tồn
+    tại (ví dụ Postgres hoàn toàn mới) - register_vector() sẽ lỗi nếu gọi
+    trước khi CREATE EXTENSION chạy xong. init_db() dùng cờ này để tự tạo
+    extension trước, tránh vòng lặp con-gà-quả-trứng.
+    """
     require_database_url()
     conn = psycopg2.connect(DATABASE_URL)
-    register_vector(conn)
+    if register_vector_type:
+        register_vector(conn)
     return conn
 
 
 def init_db():
     """Tạo extension pgvector, bảng, và index nếu chưa có. Gọi 1 lần lúc start."""
-    conn = get_connection()
+    # Bước 1: tạo extension bằng connection KHÔNG đăng ký kiểu vector
+    # (vì extension có thể chưa tồn tại, register_vector sẽ lỗi nếu gọi sớm).
+    conn = get_connection(register_vector_type=False)
     try:
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Bước 2: giờ extension đã chắc chắn tồn tại, dùng connection bình
+    # thường (có đăng ký kiểu vector) để tạo bảng/index.
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
             cur.execute(f"""
                 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
                     id TEXT PRIMARY KEY,
