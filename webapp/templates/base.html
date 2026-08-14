@@ -65,6 +65,7 @@
         form.inline { display: inline; }
         .row { display: flex; gap: 12px; align-items: center; }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 {% if user %}
@@ -80,12 +81,14 @@
 </nav>
 {% endif %}
 <main>
+    {% block flash %}
     {% if request.query_params.get('error') %}
     <div class="flash error">{{ request.query_params.get('error') }}</div>
     {% endif %}
     {% if request.query_params.get('success') %}
     <div class="flash success">{{ request.query_params.get('success') }}</div>
     {% endif %}
+    {% endblock %}
     {% block content %}{% endblock %}
 </main>
 </body>
