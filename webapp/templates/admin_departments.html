@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Phòng ban{% endblock %}
+{% block content %}
+<h1>Phòng ban</h1>
+
+<div class="card">
+    <h2 style="margin-top:0">Thêm phòng ban mới</h2>
+    <form method="post" action="/admin/departments/create">
+        <label>Tên phòng ban</label>
+        <input type="text" name="name" required>
+        <button type="submit">Thêm</button>
+    </form>
+</div>
+
+<h2>Danh sách phòng ban</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Tên</th></tr></thead>
+        <tbody>
+            {% for d in departments %}
+            <tr><td>{{ d.name }}</td></tr>
+            {% else %}
+            <tr><td class="muted">Chưa có phòng ban nào.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

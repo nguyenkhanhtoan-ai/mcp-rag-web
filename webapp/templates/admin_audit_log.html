@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<h1>Audit log</h1>
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Thời gian</th><th>User</th><th>Hành động</th><th>Chi tiết</th></tr>
+        </thead>
+        <tbody>
+            {% for a in logs %}
+            <tr>
+                <td class="muted">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ a.user_name or a.user_email or '—' }}</td>
+                <td>{{ a.action }}</td>
+                <td class="muted">{{ a.detail or '' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="muted">Chưa có log nào.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

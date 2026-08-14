@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Đăng nhập{% endblock %}
+{% block content %}
+<div style="max-width: 360px; margin: 60px auto;">
+    <h1>Đăng nhập</h1>
+    <div class="card">
+        <form method="post" action="/login">
+            <label>Email</label>
+            <input type="email" name="email" required autofocus>
+            <label>Mật khẩu</label>
+            <input type="password" name="password" required>
+            <button type="submit" style="width:100%">Đăng nhập</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

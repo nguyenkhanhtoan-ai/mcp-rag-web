@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Quản lý user{% endblock %}
+{% block content %}
+<h1>Quản lý user</h1>
+
+<div class="card">
+    <h2 style="margin-top:0">Tạo user mới</h2>
+    <form method="post" action="/admin/users/create">
+        <div class="row">
+            <div style="flex:1">
+                <label>Họ tên</label>
+                <input type="text" name="name" required>
+            </div>
+            <div style="flex:1">
+                <label>Email</label>
+                <input type="email" name="email" required>
+            </div>
+        </div>
+        <div class="row">
+            <div style="flex:1">
+                <label>Mật khẩu</label>
+                <input type="password" name="password" required minlength="8">
+            </div>
+            <div style="flex:1">
+                <label>Vai trò</label>
+                <select name="role">
+                    <option value="viewer">viewer</option>
+                    <option value="uploader">uploader</option>
+                    <option value="admin">admin</option>
+                </select>
+            </div>
+            <div style="flex:1">
+                <label>Phòng ban</label>
+                <select name="department_id">
+                    <option value="">— Không —</option>
+                    {% for d in departments %}
+                    <option value="{{ d.id }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit">Tạo user</button>
+    </form>
+</div>
+
+<h2>Danh sách user</h2>
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Tên</th><th>Email</th><th>Vai trò</th><th>Phòng ban</th><th>Trạng thái</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.name }}</td>
+                <td>{{ u.email }}</td>
+                <td><span class="badge role-{{ u.role }}">{{ u.role }}</span></td>
+                <td>{{ u.department_name or '—' }}</td>
+                <td>{{ 'Active' if u.is_active else 'Đã khoá' }}</td>
+                <td>
+                    <form class="inline" method="post" action="/admin/users/{{ u.id }}/update">
+                        <select name="role" onchange="this.form.submit()">
+                            <option value="viewer" {{ 'selected' if u.role=='viewer' }}>viewer</option>
+                            <option value="uploader" {{ 'selected' if u.role=='uploader' }}>uploader</option>
+                            <option value="admin" {{ 'selected' if u.role=='admin' }}>admin</option>
+                        </select>
+                    </form>
+                    <form class="inline" method="post" action="/admin/users/{{ u.id }}/toggle-active">
+                        <button type="submit" class="secondary">
+                            {{ 'Khoá' if u.is_active else 'Mở khoá' }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Tài liệu{% endblock %}
+{% block content %}
+<h1>Kho tài liệu PDF</h1>
+
+{% if user.role in ('admin', 'uploader') %}
+<div class="card">
+    <h2 style="margin-top:0">Upload tài liệu mới</h2>
+    <form method="post" action="/upload" enctype="multipart/form-data">
+        <label>File PDF</label>
+        <input type="file" name="file" accept=".pdf" required>
+
+        {% if user.role == 'admin' %}
+        <label>Phòng ban</label>
+        <select name="department_id" required>
+            {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <input type="hidden" name="department_id" value="{{ user.department_id }}">
+        <p class="muted">Phòng ban: {{ user.department_name or '—' }}</p>
+        {% endif %}
+
+        <button type="submit">Upload &amp; Ingest</button>
+    </form>
+</div>
+{% endif %}
+
+<h2>Danh sách tài liệu {% if user.role != 'admin' %}(phòng ban của bạn){% endif %}</h2>
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Tên file</th>
+                <th>Phòng ban</th>
+                <th>Người upload</th>
+                <th>Trạng thái</th>
+                <th>Chunks</th>
+                <th>Ngày upload</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in documents %}
+            <tr>
+                <td>{{ doc.filename }}</td>
+                <td>{{ doc.department_name or '—' }}</td>
+                <td>{{ doc.uploaded_by_name or '—' }}</td>
+                <td>
+                    <span class="badge {{ doc.status }}">{{ doc.status }}</span>
+                    {% if doc.status == 'failed' and doc.error_message %}
+                    <div class="muted" style="margin-top:4px">{{ doc.error_message }}</div>
+                    {% endif %}
+                </td>
+                <td>{{ doc.chunk_count }}</td>
+                <td class="muted">{{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    {% if user.role == 'admin' or (user.role == 'uploader' and user.department_id == doc.department_id) %}
+                    <form class="inline" method="post" action="/documents/{{ doc.id }}/delete"
+                          onsubmit="return confirm('Xoá tài liệu {{ doc.filename }}?');">
+                        <button type="submit" class="danger">Xoá</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="muted">Chưa có tài liệu nào.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
