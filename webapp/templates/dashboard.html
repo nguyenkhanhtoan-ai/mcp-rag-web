@@ -70,4 +70,12 @@
         </tbody>
     </table>
 </div>
+
+{% set processing = documents | selectattr('status', 'in', ['pending', 'ingesting']) | list %}
+{% if processing %}
+<p class="muted">⏳ Đang xử lý {{ processing|length }} tài liệu... trang sẽ tự cập nhật.</p>
+<script>
+    setTimeout(() => window.location.reload(), 3000);
+</script>
+{% endif %}
 {% endblock %}
