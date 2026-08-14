@@ -75,7 +75,7 @@
 {% if processing %}
 <p class="muted">⏳ Đang xử lý {{ processing|length }} tài liệu... trang sẽ tự cập nhật.</p>
 <script>
-    setTimeout(() => window.location.reload(), 3000);
+    setTimeout(() => { window.location.href = window.location.pathname; }, 3000);
 </script>
 {% endif %}
 {% endblock %}
