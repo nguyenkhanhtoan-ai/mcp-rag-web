@@ -133,7 +133,11 @@ def get_user_by_email(email: str) -> Optional[dict]:
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT * FROM users WHERE email = %s;", (email.lower().strip(),))
+            cur.execute("""
+                SELECT u.*, d.name AS department_name
+                FROM users u LEFT JOIN departments d ON u.department_id = d.id
+                WHERE u.email = %s;
+            """, (email.lower().strip(),))
             return cur.fetchone()
     finally:
         conn.close()
@@ -143,7 +147,11 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
     conn = get_connection()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT * FROM users WHERE id = %s;", (user_id,))
+            cur.execute("""
+                SELECT u.*, d.name AS department_name
+                FROM users u LEFT JOIN departments d ON u.department_id = d.id
+                WHERE u.id = %s;
+            """, (user_id,))
             return cur.fetchone()
     finally:
         conn.close()
