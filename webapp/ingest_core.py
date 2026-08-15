@@ -51,6 +51,7 @@ def ingest_document(document_id: int):
                     "document": c.text,
                     "embedding": emb,
                     "document_id": document_id,
+                    "tags": doc.get("tags") or [],
                 }
                 for c, emb in zip(batch, embeddings)
             ]

@@ -5,7 +5,7 @@ Thay thế ChromaDB: dữ liệu lưu trong 1 bảng Postgres, index bằng pgve
 (HNSW), phù hợp khi cần 1 database quản lý tập trung, nhiều người/service
 cùng truy cập, hoặc khi công ty đã có sẵn hạ tầng Postgres.
 """
-from typing import Sequence
+from typing import Optional, Sequence
 
 import psycopg2
 import psycopg2.extras
@@ -89,6 +89,12 @@ def init_db():
             cur.execute(f"""
                 ALTER TABLE {TABLE_NAME} ADD COLUMN IF NOT EXISTS document_id INTEGER;
             """)
+            # tags: sao chép từ documents.tags lúc ingest - lưu trực tiếp ở
+            # đây (denormalize) để lọc được ngay cả với dữ liệu ingest qua
+            # CLI cũ (không có document_id liên kết).
+            cur.execute(f"""
+                ALTER TABLE {TABLE_NAME} ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{{}}';
+            """)
             cur.execute(f"""
                 CREATE INDEX IF NOT EXISTS {TABLE_NAME}_source_idx
                 ON {TABLE_NAME} (source);
@@ -96,6 +102,11 @@ def init_db():
             cur.execute(f"""
                 CREATE INDEX IF NOT EXISTS {TABLE_NAME}_document_id_idx
                 ON {TABLE_NAME} (document_id);
+            """)
+            # GIN index cho tìm kiếm/lọc theo mảng tags (toán tử && , @>)
+            cur.execute(f"""
+                CREATE INDEX IF NOT EXISTS {TABLE_NAME}_tags_idx
+                ON {TABLE_NAME} USING gin (tags);
             """)
             # HNSW: index gần đúng cho cosine similarity, tốt cho vài chục nghìn~triệu vector
             cur.execute(f"""
@@ -153,7 +164,8 @@ def delete_by_document_id(document_id: int):
 def add_chunks(rows: list[dict]):
     """
     rows: list các dict có keys: id, source, page, chunk_index, content_hash,
-    document, embedding (list[float]), document_id (int | None, optional)
+    document, embedding (list[float]), document_id (int | None, optional),
+    tags (list[str], optional - mặc định [])
     """
     if not rows:
         return
@@ -164,13 +176,14 @@ def add_chunks(rows: list[dict]):
                 cur,
                 f"""
                 INSERT INTO {TABLE_NAME}
-                    (id, source, page, chunk_index, content_hash, document, embedding, document_id)
+                    (id, source, page, chunk_index, content_hash, document, embedding, document_id, tags)
                 VALUES %s
                 ON CONFLICT (id) DO UPDATE SET
                     document = EXCLUDED.document,
                     embedding = EXCLUDED.embedding,
                     content_hash = EXCLUDED.content_hash,
-                    document_id = EXCLUDED.document_id;
+                    document_id = EXCLUDED.document_id,
+                    tags = EXCLUDED.tags;
                 """,
                 [
                     (
@@ -182,33 +195,64 @@ def add_chunks(rows: list[dict]):
                         r["document"],
                         r["embedding"],
                         r.get("document_id"),
+                        r.get("tags") or [],
                     )
                     for r in rows
                 ],
-                template="(%s, %s, %s, %s, %s, %s, %s::vector, %s)",
+                template="(%s, %s, %s, %s, %s, %s, %s::vector, %s, %s)",
             )
         conn.commit()
     finally:
         conn.close()
 
 
-def query(query_embedding: list[float], top_k: int) -> list[dict]:
-    """Trả về top_k chunk gần nhất, kèm similarity (1 - cosine distance)."""
+def query(query_embedding: list[float], top_k: int, tags: Optional[list[str]] = None) -> list[dict]:
+    """Trả về top_k chunk gần nhất, kèm similarity (1 - cosine distance).
+
+    tags: nếu truyền vào (danh sách khác rỗng), CHỈ tìm trong các chunk có
+    ít nhất 1 tag trùng khớp (lọc chủ đề trước khi xếp hạng theo ngữ nghĩa) -
+    giúp thu hẹp phạm vi search, tăng độ chính xác khi kho tài liệu lớn.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT document, source, page, chunk_index,
-                       1 - (embedding <=> %s::vector) AS similarity
-                FROM {TABLE_NAME}
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s;
-                """,
-                (query_embedding, query_embedding, top_k),
-            )
+            if tags:
+                cur.execute(
+                    f"""
+                    SELECT document, source, page, chunk_index, tags,
+                           1 - (embedding <=> %s::vector) AS similarity
+                    FROM {TABLE_NAME}
+                    WHERE tags && %s::text[]
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s;
+                    """,
+                    (query_embedding, tags, query_embedding, top_k),
+                )
+            else:
+                cur.execute(
+                    f"""
+                    SELECT document, source, page, chunk_index, tags,
+                           1 - (embedding <=> %s::vector) AS similarity
+                    FROM {TABLE_NAME}
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s;
+                    """,
+                    (query_embedding, query_embedding, top_k),
+                )
             cols = [desc[0] for desc in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def list_all_tags() -> list[str]:
+    """Trả về danh sách tất cả tag đang được dùng (duy nhất, sắp xếp) -
+    dùng để Claude biết trước có những chủ đề nào để lọc."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT DISTINCT unnest(tags) FROM {TABLE_NAME} ORDER BY 1;")
+            return [row[0] for row in cur.fetchall()]
     finally:
         conn.close()
 
@@ -220,6 +264,28 @@ def list_sources() -> dict[str, int]:
         with conn.cursor() as cur:
             cur.execute(f"SELECT source, COUNT(*) FROM {TABLE_NAME} GROUP BY source ORDER BY source;")
             return {row[0]: row[1] for row in cur.fetchall()}
+    finally:
+        conn.close()
+
+
+def get_full_document(source: str) -> list[dict]:
+    """Trả về TOÀN BỘ chunk của 1 file (không phải top-k theo similarity),
+    sắp xếp đúng thứ tự trang/chunk - dùng khi cần đọc/tóm tắt trọn vẹn 1
+    tài liệu thay vì chỉ các đoạn liên quan nhất tới 1 câu hỏi cụ thể."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT document, page, chunk_index
+                FROM {TABLE_NAME}
+                WHERE source = %s
+                ORDER BY page, chunk_index;
+                """,
+                (source,),
+            )
+            cols = [desc[0] for desc in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
     finally:
         conn.close()
 

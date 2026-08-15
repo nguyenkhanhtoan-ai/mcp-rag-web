@@ -66,6 +66,14 @@ def init_admin_db():
                     ingested_at TIMESTAMPTZ
                 );
             """)
+            # tags: chủ đề gắn lúc upload, dùng để lọc/thu hẹp phạm vi tìm
+            # kiếm (search_docs) trước khi xếp hạng theo ngữ nghĩa.
+            cur.execute("""
+                ALTER TABLE documents ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS documents_tags_idx ON documents USING gin (tags);
+            """)
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS documents_department_idx ON documents (department_id);
             """)
@@ -309,16 +317,17 @@ def delete_user(user_id: int):
 # ---------- Documents ----------
 
 def create_document(filename: str, content_hash: str, file_data: bytes,
-                     department_id: Optional[int], uploaded_by: int) -> int:
+                     department_id: Optional[int], uploaded_by: int,
+                     tags: Optional[list[str]] = None) -> int:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO documents (filename, content_hash, file_data, department_id, uploaded_by, status)
-                VALUES (%s, %s, %s, %s, %s, 'pending') RETURNING id;
+                INSERT INTO documents (filename, content_hash, file_data, department_id, uploaded_by, status, tags)
+                VALUES (%s, %s, %s, %s, %s, 'pending', %s) RETURNING id;
                 """,
-                (filename, content_hash, psycopg2.Binary(file_data), department_id, uploaded_by),
+                (filename, content_hash, psycopg2.Binary(file_data), department_id, uploaded_by, tags or []),
             )
             doc_id = cur.fetchone()[0]
         conn.commit()
@@ -358,7 +367,7 @@ def list_documents(department_id: Optional[int] = None, limit: Optional[int] = N
             base_query = """
                 SELECT doc.id, doc.filename, doc.status, doc.error_message,
                        doc.chunk_count, doc.uploaded_at, doc.ingested_at,
-                       doc.department_id, d.name AS department_name,
+                       doc.department_id, doc.tags, d.name AS department_name,
                        u.name AS uploaded_by_name
                 FROM documents doc
                 LEFT JOIN departments d ON doc.department_id = d.id

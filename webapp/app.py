@@ -122,7 +122,8 @@ def dashboard(request: Request, page: int = 1):
 
 @app.post("/upload")
 async def upload(request: Request, background_tasks: BackgroundTasks,
-                  file: UploadFile = File(...), department_id: str = Form(...)):
+                  file: UploadFile = File(...), department_id: str = Form(...),
+                  tags: str = Form("")):
     user = auth.require_role(request, ("admin", "uploader"))
     dept_id = int(department_id)
 
@@ -136,8 +137,11 @@ async def upload(request: Request, background_tasks: BackgroundTasks,
     if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
         return _flash_redirect("/", error=f"File vượt quá {MAX_UPLOAD_MB}MB.")
 
+    # Tách chuỗi tag cách nhau bởi dấu phẩy, loại khoảng trắng thừa và tag rỗng
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+
     content_hash = hashlib.sha256(data).hexdigest()[:16]
-    doc_id = db.create_document(file.filename, content_hash, data, dept_id, user["id"])
+    doc_id = db.create_document(file.filename, content_hash, data, dept_id, user["id"], tags=tag_list)
     db.add_audit_log(user["id"], "upload", doc_id, f"Uploaded {file.filename}")
 
     background_tasks.add_task(ingest_core.ingest_document, doc_id)

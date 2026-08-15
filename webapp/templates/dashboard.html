@@ -22,6 +22,10 @@
         <p class="muted">Phòng ban: {{ user.department_name or '—' }}</p>
         {% endif %}
 
+        <label>Chủ đề / Tag (cách nhau bởi dấu phẩy)</label>
+        <input type="text" name="tags" placeholder="VD: HR, tuyển dụng, quy trình">
+        <p class="muted" style="margin-top:-10px">Dùng để lọc tìm kiếm chính xác hơn theo chủ đề.</p>
+
         <button type="submit">Upload &amp; Ingest</button>
     </form>
 </div>
@@ -47,6 +51,7 @@
             <tr>
                 <th>Tên file</th>
                 <th>Phòng ban</th>
+                <th>Tag</th>
                 <th>Người upload</th>
                 <th>Trạng thái</th>
                 <th>Chunks</th>
@@ -59,6 +64,13 @@
             <tr>
                 <td>{{ doc.filename }}</td>
                 <td>{{ doc.department_name or '—' }}</td>
+                <td>
+                    {% for tag in doc.tags %}
+                    <span class="badge role-viewer" style="margin:1px">{{ tag }}</span>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endfor %}
+                </td>
                 <td>{{ doc.uploaded_by_name or '—' }}</td>
                 <td>
                     <span class="badge {{ doc.status }}">{{ doc.status }}</span>
@@ -78,7 +90,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="7" class="muted">Chưa có tài liệu nào.</td></tr>
+            <tr><td colspan="8" class="muted">Chưa có tài liệu nào.</td></tr>
             {% endfor %}
         </tbody>
     </table>
