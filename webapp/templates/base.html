@@ -40,16 +40,18 @@
             background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 70%, var(--vnpt-gold) 100%);
         }
         .theme-toggle {
-            position: fixed; top: 14px; right: 14px; z-index: 1000;
             display: flex; gap: 2px; background: #ffffff;
             border: 1px solid rgba(0,0,0,0.08); border-radius: 999px;
-            padding: 3px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            padding: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            flex-shrink: 0;
         }
+        .theme-toggle-fixed { position: fixed; top: 14px; right: 14px; z-index: 1000; }
         .theme-toggle button {
             background: transparent; color: #67707e; border: none;
             padding: 6px 12px; border-radius: 999px; font-size: 12px;
-            font-weight: 700; cursor: pointer;
+            font-weight: 700; cursor: pointer; line-height: 1;
         }
+        .theme-toggle-inline button { padding: 5px 9px; font-size: 13px; }
         .theme-toggle button.active { background: #1b2430; color: #fff; }
         nav {
             display: flex; align-items: center; gap: 24px;
@@ -123,10 +125,6 @@
 </head>
 <body>
 <div class="brand-bar"></div>
-<div class="theme-toggle" role="group" aria-label="Chọn giao diện">
-    <button type="button" id="theme-btn-dark" onclick="setTheme('dark')">🌙 Tối</button>
-    <button type="button" id="theme-btn-light" onclick="setTheme('light')">☀️ Sáng</button>
-</div>
 {% if user %}
 <nav>
     <span class="brand"><span class="vnpt-mark">VNPT</span> · Kho Tri Thức</span>
@@ -137,7 +135,16 @@
     <a href="/admin/audit-log">Audit log</a>
     {% endif %}
     <span class="user">{{ user.name }} · <span class="badge role-{{ user.role }}">{{ user.role }}</span> · <a href="/logout">Đăng xuất</a></span>
+    <div class="theme-toggle theme-toggle-inline" role="group" aria-label="Chọn giao diện">
+        <button type="button" id="theme-btn-dark" onclick="setTheme('dark')">🌙</button>
+        <button type="button" id="theme-btn-light" onclick="setTheme('light')">☀️</button>
+    </div>
 </nav>
+{% else %}
+<div class="theme-toggle theme-toggle-fixed" role="group" aria-label="Chọn giao diện">
+    <button type="button" id="theme-btn-dark" onclick="setTheme('dark')">🌙 Tối</button>
+    <button type="button" id="theme-btn-light" onclick="setTheme('light')">☀️ Sáng</button>
+</div>
 {% endif %}
 <main>
     {% block flash %}
