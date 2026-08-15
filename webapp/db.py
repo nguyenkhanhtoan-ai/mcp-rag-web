@@ -192,9 +192,12 @@ def create_user(email: str, password: str, name: str, role: str, department_id: 
 
 
 def update_user(user_id: int, role: Optional[str] = None, department_id=None,
-                 is_active: Optional[bool] = None, _dept_unset=object()):
-    """Cập nhật role/department_id/is_active. department_id=None nghĩa là bỏ
-    phòng ban (set NULL); dùng _dept_unset (mặc định) để giữ nguyên."""
+                 is_active: Optional[bool] = None, name: Optional[str] = None,
+                 email: Optional[str] = None, password: Optional[str] = None,
+                 _dept_unset=object()):
+    """Cập nhật thông tin user. Chỉ cập nhật các trường được truyền vào
+    (khác None/mặc định); department_id=None nghĩa là bỏ phòng ban (set
+    NULL), dùng _dept_unset (mặc định) để giữ nguyên phòng ban hiện tại."""
     fields, values = [], []
     if role is not None:
         if role not in ROLES:
@@ -207,6 +210,15 @@ def update_user(user_id: int, role: Optional[str] = None, department_id=None,
     if is_active is not None:
         fields.append("is_active = %s")
         values.append(is_active)
+    if name is not None:
+        fields.append("name = %s")
+        values.append(name)
+    if email is not None:
+        fields.append("email = %s")
+        values.append(email.lower().strip())
+    if password is not None:
+        fields.append("password_hash = %s")
+        values.append(hash_password(password))
     if not fields:
         return
     values.append(user_id)
@@ -232,6 +244,19 @@ def count_admins(exclude_user_id: Optional[int] = None) -> int:
             else:
                 cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = TRUE;")
             return cur.fetchone()[0]
+    finally:
+        conn.close()
+
+
+def delete_user(user_id: int):
+    """Xoá hẳn user. An toàn với dữ liệu liên quan: documents.uploaded_by và
+    audit_log.user_id đều ON DELETE SET NULL, tài liệu/log cũ vẫn giữ
+    nguyên, chỉ mất tên người thực hiện (hiển thị dạng '—')."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
+        conn.commit()
     finally:
         conn.close()
 

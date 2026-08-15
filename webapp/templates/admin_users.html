@@ -60,18 +60,18 @@
                 <td>{{ u.department_name or '—' }}</td>
                 <td>{{ 'Active' if u.is_active else 'Đã khoá' }}</td>
                 <td>
-                    <form class="inline" method="post" action="/admin/users/{{ u.id }}/update">
-                        <select name="role" onchange="this.form.submit()">
-                            <option value="viewer" {{ 'selected' if u.role=='viewer' }}>viewer</option>
-                            <option value="uploader" {{ 'selected' if u.role=='uploader' }}>uploader</option>
-                            <option value="admin" {{ 'selected' if u.role=='admin' }}>admin</option>
-                        </select>
-                    </form>
+                    <a href="/admin/users/{{ u.id }}/edit" class="page-link">Sửa</a>
                     <form class="inline" method="post" action="/admin/users/{{ u.id }}/toggle-active">
                         <button type="submit" class="secondary">
                             {{ 'Khoá' if u.is_active else 'Mở khoá' }}
                         </button>
                     </form>
+                    {% if u.id != user.id %}
+                    <form class="inline" method="post" action="/admin/users/{{ u.id }}/delete"
+                          onsubmit="return confirm('Xoá hẳn user {{ u.email }}? Hành động này không thể hoàn tác.');">
+                        <button type="submit" class="danger">Xoá</button>
+                    </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

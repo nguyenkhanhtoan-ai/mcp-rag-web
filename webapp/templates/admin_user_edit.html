@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Sửa user{% endblock %}
+{% block content %}
+<h1>Sửa user</h1>
+
+<div class="card" style="max-width:480px">
+    <form method="post" action="/admin/users/{{ target.id }}/edit">
+        <label>Họ tên</label>
+        <input type="text" name="name" value="{{ target.name }}" required>
+
+        <label>Email</label>
+        <input type="email" name="email" value="{{ target.email }}" required>
+
+        <label>Vai trò</label>
+        <select name="role">
+            <option value="viewer" {{ 'selected' if target.role=='viewer' }}>viewer</option>
+            <option value="uploader" {{ 'selected' if target.role=='uploader' }}>uploader</option>
+            <option value="admin" {{ 'selected' if target.role=='admin' }}>admin</option>
+        </select>
+
+        <label>Phòng ban</label>
+        <select name="department_id">
+            <option value="" {{ 'selected' if not target.department_id }}>— Không —</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}" {{ 'selected' if target.department_id == d.id }}>{{ d.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Mật khẩu mới (để trống nếu không đổi)</label>
+        <input type="password" name="password" minlength="8" placeholder="••••••••">
+
+        <div class="row" style="margin-top:8px">
+            <button type="submit">Lưu thay đổi</button>
+            <a href="/admin/users" class="page-link">Huỷ</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

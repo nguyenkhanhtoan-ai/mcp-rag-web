@@ -186,15 +186,6 @@ def admin_create_user(request: Request, name: str = Form(...), email: str = Form
     return _flash_redirect("/admin/users", success=f"Đã tạo user {email}.")
 
 
-@app.post("/admin/users/{user_id}/update")
-def admin_update_user_role(request: Request, user_id: int, role: str = Form(...)):
-    current = auth.require_role(request, ("admin",))
-    if user_id == current["id"] and role != "admin" and db.count_admins(exclude_user_id=user_id) == 0:
-        return _flash_redirect("/admin/users", error="Không thể tự hạ quyền admin cuối cùng.")
-    db.update_user(user_id, role=role)
-    return _flash_redirect("/admin/users", success="Đã cập nhật vai trò.")
-
-
 @app.post("/admin/users/{user_id}/toggle-active")
 def admin_toggle_active(request: Request, user_id: int):
     current = auth.require_role(request, ("admin",))
@@ -205,6 +196,61 @@ def admin_toggle_active(request: Request, user_id: int):
         return _flash_redirect("/admin/users", error="Không thể khoá admin cuối cùng.")
     db.update_user(user_id, is_active=not target["is_active"])
     return _flash_redirect("/admin/users", success="Đã cập nhật trạng thái user.")
+
+
+@app.get("/admin/users/{user_id}/edit", response_class=HTMLResponse)
+def admin_edit_user_page(request: Request, user_id: int):
+    current = auth.require_role(request, ("admin",))
+    target = db.get_user_by_id(user_id)
+    if target is None:
+        return _flash_redirect("/admin/users", error="Không tìm thấy user.")
+    return templates.TemplateResponse(request, "admin_user_edit.html", {
+        "user": current, "target": target, "departments": db.list_departments(),
+    })
+
+
+@app.post("/admin/users/{user_id}/edit")
+def admin_edit_user_save(request: Request, user_id: int, name: str = Form(...),
+                          email: str = Form(...), role: str = Form(...),
+                          department_id: str = Form(""), password: str = Form("")):
+    current = auth.require_role(request, ("admin",))
+    target = db.get_user_by_id(user_id)
+    if target is None:
+        return _flash_redirect("/admin/users", error="Không tìm thấy user.")
+
+    if user_id == current["id"] and role != "admin" and db.count_admins(exclude_user_id=user_id) == 0:
+        return _flash_redirect(f"/admin/users/{user_id}/edit", error="Không thể tự hạ quyền admin cuối cùng.")
+
+    if password and len(password) < 8:
+        return _flash_redirect(f"/admin/users/{user_id}/edit", error="Mật khẩu mới phải tối thiểu 8 ký tự.")
+
+    dept_id = int(department_id) if department_id else None
+    try:
+        db.update_user(
+            user_id, name=name, email=email, role=role, department_id=dept_id,
+            password=password if password else None,
+        )
+    except Exception as e:  # noqa: BLE001
+        return _flash_redirect(f"/admin/users/{user_id}/edit", error=f"Lỗi cập nhật: {e}")
+
+    return _flash_redirect("/admin/users", success=f"Đã cập nhật user {email}.")
+
+
+@app.post("/admin/users/{user_id}/delete")
+def admin_delete_user(request: Request, user_id: int):
+    current = auth.require_role(request, ("admin",))
+    target = db.get_user_by_id(user_id)
+    if target is None:
+        return _flash_redirect("/admin/users", error="Không tìm thấy user.")
+
+    if user_id == current["id"]:
+        return _flash_redirect("/admin/users", error="Không thể tự xoá chính mình. Nhờ admin khác xoá giúp.")
+
+    if target["role"] == "admin" and target["is_active"] and db.count_admins(exclude_user_id=user_id) == 0:
+        return _flash_redirect("/admin/users", error="Không thể xoá admin cuối cùng.")
+
+    db.delete_user(user_id)
+    return _flash_redirect("/admin/users", success=f"Đã xoá user {target['email']}.")
 
 
 # ---------- Admin: departments ----------
