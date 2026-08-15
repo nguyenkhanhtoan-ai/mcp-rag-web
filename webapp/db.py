@@ -127,6 +127,51 @@ def create_department(name: str) -> int:
         conn.close()
 
 
+def get_department(department_id: int) -> Optional[dict]:
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM departments WHERE id = %s;", (department_id,))
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def update_department(department_id: int, name: str):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE departments SET name = %s WHERE id = %s;", (name, department_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def count_users_in_department(department_id: int) -> int:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM users WHERE department_id = %s;", (department_id,))
+            return cur.fetchone()[0]
+    finally:
+        conn.close()
+
+
+def delete_department(department_id: int):
+    """Xoá phòng ban. Gọi hàm này khi ĐÃ xác nhận không còn user/tài liệu
+    nào gắn với phòng ban đó (kiểm tra ở tầng route) - dù users.department_id
+    và documents.department_id đều ON DELETE SET NULL nên xoá vẫn an toàn
+    kỹ thuật, nhưng để tránh mồ côi dữ liệu ngoài ý muốn, route sẽ chặn nếu
+    còn phụ thuộc thay vì xoá âm thầm."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM departments WHERE id = %s;", (department_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 # ---------- Users ----------
 
 def get_user_by_email(email: str) -> Optional[dict]:

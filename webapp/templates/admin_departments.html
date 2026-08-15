@@ -15,12 +15,25 @@
 <h2>Danh sách phòng ban</h2>
 <div class="card">
     <table>
-        <thead><tr><th>Tên</th></tr></thead>
+        <thead>
+            <tr><th>Tên</th><th>Users</th><th>Tài liệu</th><th></th></tr>
+        </thead>
         <tbody>
             {% for d in departments %}
-            <tr><td>{{ d.name }}</td></tr>
+            <tr>
+                <td>{{ d.name }}</td>
+                <td class="muted">{{ d.user_count }}</td>
+                <td class="muted">{{ d.doc_count }}</td>
+                <td>
+                    <a href="/admin/departments/{{ d.id }}/edit" class="page-link">Sửa</a>
+                    <form class="inline" method="post" action="/admin/departments/{{ d.id }}/delete"
+                          onsubmit="return confirm('Xoá phòng ban {{ d.name }}?');">
+                        <button type="submit" class="danger" {{ 'disabled title="Còn user/tài liệu đang gắn với phòng ban này"' if (d.user_count > 0 or d.doc_count > 0) }}>Xoá</button>
+                    </form>
+                </td>
+            </tr>
             {% else %}
-            <tr><td class="muted">Chưa có phòng ban nào.</td></tr>
+            <tr><td colspan="4" class="muted">Chưa có phòng ban nào.</td></tr>
             {% endfor %}
         </tbody>
     </table>

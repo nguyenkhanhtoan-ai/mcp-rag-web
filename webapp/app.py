@@ -95,22 +95,23 @@ DOCS_PER_PAGE = 5
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, page: int = 1):
     user = auth.require_login(request)
-    dept_filter = auth.visible_department_id(user)
-
     page = max(1, page)
-    total_docs = db.count_documents(department_id=dept_filter)
-    total_pages = max(1, (total_docs + DOCS_PER_PAGE - 1) // DOCS_PER_PAGE)
-    page = min(page, total_pages)
-    offset = (page - 1) * DOCS_PER_PAGE
 
-    documents = db.list_documents(department_id=dept_filter, limit=DOCS_PER_PAGE, offset=offset)
-    departments = db.list_departments()
-
-    # Thống kê: admin xem theo từng phòng ban, người khác chỉ xem tổng của phòng mình
-    if user["role"] == "admin":
-        dept_stats = db.count_documents_by_department()
+    if user["role"] != "admin" and user["department_id"] is None:
+        # User không có phòng ban -> KHÔNG được xem tài liệu của bất kỳ ai
+        # (tránh nhầm lẫn với admin, nơi department_id=None nghĩa là "xem tất cả").
+        documents, total_docs, total_pages, dept_stats = [], 0, 1, None
     else:
-        dept_stats = None
+        dept_filter = auth.visible_department_id(user)
+        total_docs = db.count_documents(department_id=dept_filter)
+        total_pages = max(1, (total_docs + DOCS_PER_PAGE - 1) // DOCS_PER_PAGE)
+        page = min(page, total_pages)
+        offset = (page - 1) * DOCS_PER_PAGE
+        documents = db.list_documents(department_id=dept_filter, limit=DOCS_PER_PAGE, offset=offset)
+        # Thống kê: admin xem theo từng phòng ban, người khác chỉ xem tổng của phòng mình
+        dept_stats = db.count_documents_by_department() if user["role"] == "admin" else None
+
+    departments = db.list_departments()
 
     return templates.TemplateResponse(request, "dashboard.html", {
         "user": user, "documents": documents, "departments": departments,
@@ -258,8 +259,12 @@ def admin_delete_user(request: Request, user_id: int):
 @app.get("/admin/departments", response_class=HTMLResponse)
 def admin_departments(request: Request):
     user = auth.require_role(request, ("admin",))
+    departments = db.list_departments()
+    for d in departments:
+        d["user_count"] = db.count_users_in_department(d["id"])
+        d["doc_count"] = db.count_documents(department_id=d["id"])
     return templates.TemplateResponse(request, "admin_departments.html", {
-        "user": user, "departments": db.list_departments(),
+        "user": user, "departments": departments,
     })
 
 
@@ -268,6 +273,54 @@ def admin_create_department(request: Request, name: str = Form(...)):
     auth.require_role(request, ("admin",))
     db.create_department(name.strip())
     return _flash_redirect("/admin/departments", success=f"Đã thêm phòng ban '{name}'.")
+
+
+@app.get("/admin/departments/{department_id}/edit", response_class=HTMLResponse)
+def admin_edit_department_page(request: Request, department_id: int):
+    user = auth.require_role(request, ("admin",))
+    dept = db.get_department(department_id)
+    if dept is None:
+        return _flash_redirect("/admin/departments", error="Không tìm thấy phòng ban.")
+    return templates.TemplateResponse(request, "admin_department_edit.html", {
+        "user": user, "dept": dept,
+    })
+
+
+@app.post("/admin/departments/{department_id}/edit")
+def admin_edit_department_save(request: Request, department_id: int, name: str = Form(...)):
+    auth.require_role(request, ("admin",))
+    if db.get_department(department_id) is None:
+        return _flash_redirect("/admin/departments", error="Không tìm thấy phòng ban.")
+    name = name.strip()
+    if not name:
+        return _flash_redirect(f"/admin/departments/{department_id}/edit", error="Tên phòng ban không được để trống.")
+    try:
+        db.update_department(department_id, name)
+    except Exception as e:  # noqa: BLE001
+        return _flash_redirect(f"/admin/departments/{department_id}/edit", error=f"Lỗi cập nhật: {e}")
+    return _flash_redirect("/admin/departments", success=f"Đã cập nhật phòng ban thành '{name}'.")
+
+
+@app.post("/admin/departments/{department_id}/delete")
+def admin_delete_department(request: Request, department_id: int):
+    auth.require_role(request, ("admin",))
+    dept = db.get_department(department_id)
+    if dept is None:
+        return _flash_redirect("/admin/departments", error="Không tìm thấy phòng ban.")
+
+    user_count = db.count_users_in_department(department_id)
+    doc_count = db.count_documents(department_id=department_id)
+    if user_count > 0 or doc_count > 0:
+        return _flash_redirect(
+            "/admin/departments",
+            error=(
+                f"Không thể xoá '{dept['name']}': còn {user_count} user và {doc_count} tài liệu "
+                "đang gắn với phòng ban này. Hãy chuyển họ sang phòng ban khác trước."
+            ),
+        )
+
+    db.delete_department(department_id)
+    return _flash_redirect("/admin/departments", success=f"Đã xoá phòng ban '{dept['name']}'.")
 
 
 # ---------- Admin: audit log ----------
